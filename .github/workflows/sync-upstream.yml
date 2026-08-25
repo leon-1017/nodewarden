@@ -38,23 +38,15 @@ jobs:
           MANUAL_INPUT="${{ github.event.inputs.target_commit }}"
 
           if [ "$TRIGGER" = "schedule" ]; then
-            # Auto mode: resolve latest upstream release tag
-            LATEST_TAG=$(curl -s https://api.github.com/repos/shuaiplus/NodeWarden/releases/latest | jq -r .tag_name)
-            if [ "$LATEST_TAG" = "null" ] || [ -z "$LATEST_TAG" ]; then
-              echo "No release found in upstream."
-              exit 1
-            fi
-            TARGET_SHA=$(git rev-list -n 1 "$LATEST_TAG" 2>/dev/null)
-            if [ -z "$TARGET_SHA" ]; then
-              echo "Tag '$LATEST_TAG' not found after fetch."
-              exit 1
-            fi
+            # Auto mode: track latest commit on upstream/main (not release tags,
+            # so fixes merged after the latest release are also picked up)
+            TARGET_SHA=$(git rev-parse upstream/main)
             {
               echo "mode=auto"
-              echo "latest_tag=$LATEST_TAG"
+              echo "latest_tag=$(git describe --tags --abbrev=0 upstream/main 2>/dev/null || echo 'N/A')"
               echo "target_sha=$TARGET_SHA"
             } >> "$GITHUB_OUTPUT"
-            echo "Auto mode — latest release: $LATEST_TAG ($TARGET_SHA)"
+            echo "Auto mode — upstream/main HEAD: $TARGET_SHA"
 
           elif [ -n "$MANUAL_INPUT" ]; then
             # Manual mode: use provided commit hash or tag
